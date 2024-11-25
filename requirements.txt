@@ -1,0 +1,9 @@
+flask
+pdfplumber
+langchain
+langchain-openai
+pymongo
+python-dotenv
+flask-cors
+gunicorn
+
