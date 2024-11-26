@@ -4,8 +4,7 @@ from flask import Flask, request, jsonify, abort
 from langchain.prompts import PromptTemplate
 from langchain_openai import OpenAI
 from langchain.chains import LLMChain
-
-
+from flask_cors import CORS
 from langchain.output_parsers import StructuredOutputParser, ResponseSchema
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -20,9 +19,8 @@ load_dotenv()
 
 
 # Configuração da API OpenAI
-openai_api_key = os.getenv("OPENAI_API_KEY")
-llm = OpenAI(temperature=0.7, openai_api_key=openai_api_key)
-prompt_template = PromptTemplate.from_template("Seu modelo de prompt aqui")
+openai_api_key = ''
+llm = OpenAI(openai_api_key=openai_api_key)
 
 
 
@@ -30,7 +28,7 @@ prompt_template = PromptTemplate.from_template("Seu modelo de prompt aqui")
 
 
 # Configuração do MongoDB Atlas
-atlas_uri = "mongodb+srv://mariavitoria15100:3QteP2eh8LCvqNnu@cluster0.iezl6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"  # URL de conexão do MongoDB Atlas
+atlas_uri = ''  # URL de conexão do MongoDB Atlas
 client = MongoClient(atlas_uri)  # Usando a URI do MongoDB Atlas
 db = client["vitoriagomes1510"]  # Nome do banco de dados no MongoDB
 resume_collection = db["resume_database"]  # Coleção de currículos
@@ -41,11 +39,11 @@ faq_collection = db["faq"]  # Coleção de FAQs
 
 # Configuração do Flask
 app = Flask(__name__)
+CORS(app)
 
 
 
 
-# Função para enriquecer o prompt com dados do FAQ
 # Função para enriquecer o prompt com dados do FAQ
 def enrich_prompt_with_faq():
     """
@@ -92,7 +90,7 @@ output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
 # Configuração do PromptTemplate
 prompt_template = PromptTemplate(
     input_variables=["resume_text", "faq_context"],
-    template=f"""
+    template="""
     Você é um assistente de recrutamento. Use as informações abaixo como contexto adicional:
 
 
@@ -110,8 +108,7 @@ prompt_template = PromptTemplate(
 
 
 
-    Classifique o currículo e forneça uma saída estruturada nos seguintes campos:
-    {output_parser.get_format_instructions()}
+    Classifique o currículo e forneça uma saída estruturada nos seguintes campos:  
     """
 )
 
@@ -165,7 +162,7 @@ def extract_text_from_pdf(file):
 
 
 
-# Função para analisar currículos
+
 # Função para analisar currículos
 def analyze_resume(resume_text):
     """
@@ -186,13 +183,15 @@ def analyze_resume(resume_text):
             raise ValueError("Contexto FAQ está vazio.")
        
         # Executando a cadeia do LangChain
+        chain = LLMChain(llm=llm, prompt=prompt_template)
         raw_output = chain.run(resume_text=resume_text, faq_context=faq_context)
        
         # Adicionando o print para debugar a saída do LLM
         print("Raw output:", raw_output)  # Verifique o que é retornado pelo LLM
        
         # Agora tente parsear a saída com o parser
-        return output_parser.parse(raw_output)
+        pased_output = output_parser.parse(raw_output)
+        return pased_output
     except Exception as e:
         raise Exception(f"Erro ao analisar currículo: {str(e)}")
 
@@ -339,6 +338,7 @@ def chat():
     # Criação do prompt para o chat
     faq_context = enrich_prompt_with_faq()  # Garantir que o contexto da FAQ seja gerado uma vez
     try:
+        chain = LLMChain(llm=llm, prompt=prompt_template)
         response = chain.run(resume_text=user_message, faq_context=faq_context)
         return jsonify({"response": response})
     except Exception as e:
