@@ -1,4 +1,3 @@
-import os
 import pdfplumber
 from flask import Flask, request, jsonify, abort
 from langchain.prompts import PromptTemplate
